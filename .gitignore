@@ -4,3 +4,6 @@
 
 # Dependencies
 node_modules
+
+# IDE
+.idea
