@@ -1,0 +1,134 @@
+# PRODUCTION CONFIGURATION — template. Image-based (compiled, no ts-node, no bind-mount).
+#
+# Both app services are self-contained images built from source:
+#   api — docker/api.Dockerfile : webpack-bundled app + slim node_modules; runs
+#         `node migrate.js && node main.js` (migrations apply on every boot, idempotent).
+#   web — docker/web.Dockerfile : Next standalone (traced node_modules); runs
+#         `node apps/web/server.js`. NEXT_PUBLIC_* are baked in at BUILD time.
+#
+# Build on a host with RAM (the webpack/Next builds are memory-heavy — don't build
+# on the VPS), push, then pull on prod. Pin tags via API_IMAGE / WEB_IMAGE in .env:
+#   yarn docker:release                          # on a build host (build + push)
+#   yarn docker:release:pull && yarn prod:start  # on prod (pull + recreate)
+#
+# Host defaults to https://{{domain}} (single origin: web at /, API proxied at
+# /api + /graphql — see docs/examples/reverse-proxy.md).
+# Prod ports live in a SEPARATE band from dev (pick a free 10xxx band per
+# docs/examples/ports.md) so dev and prod stacks can run side by side:
+#   web {{prod_port_web}}, api {{prod_port_api}}; postgres stays internal.
+# Required secrets in .env (copy .env.prod.example): JWT_SECRET, POSTGRES_PASSWORD.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: {{project_name|machine_name}}_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-{{project_name|machine_name}}}
+      POSTGRES_USER: ${POSTGRES_USER:-{{project_name|machine_name}}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - {{project_name|machine_name}}_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-{{project_name|machine_name}}} -d ${POSTGRES_DB:-{{project_name|machine_name}}}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    # Compiled, self-contained release image — bundled JS + slim node_modules,
+    # runs on plain node. Pin a registry tag via API_IMAGE in .env; the build
+    # block lets a build host run `docker compose -f docker-compose-prod.yml build api`.
+    image: ${API_IMAGE:-{{image_repo}}:api}
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: {{project_name|machine_name}}_api
+    environment:
+      # production by default; set NODE_ENV=development for a local http trial so
+      # the session cookie isn't Secure-only (won't stick over plain localhost).
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-{{project_name|machine_name}}}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-{{project_name|machine_name}}}
+      - API_PORT=${API_PORT:-{{prod_port_api}}}
+      - API_HOST=0.0.0.0
+      - FRONTEND_URL=${FRONTEND_URL:-https://{{domain}}}
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-30d}
+      # Lock down the public GraphQL surface in production (override to enable).
+      - GRAPHQL_PLAYGROUND=${GRAPHQL_PLAYGROUND:-false}
+      - GRAPHQL_INTROSPECTION=${GRAPHQL_INTROSPECTION:-false}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-https://{{domain}}/api/auth/google/callback}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-5}
+      # Shared Elasticsearch (optional — see docs/examples/stacks.md). Projects do
+      # NOT run their own ES in prod; they join the external `crk_vps_shared`
+      # network (owned by the crk-vps-shared stack — start it first) and use a
+      # per-project index. Unset ELASTICSEARCH_URL to fall back to Postgres search.
+      # - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://shared_elasticsearch:9200}
+      # - ELASTICSEARCH_INDEX=${ELASTICSEARCH_INDEX:-{{project_name|machine_name}}_main}
+    ports:
+      - '${API_PORT:-{{prod_port_api}}}:${API_PORT:-{{prod_port_api}}}'
+    # If the app stores uploaded files on disk, persist them on the host —
+    # the only mutable state outside Postgres:
+    # volumes:
+    #   - ./uploads:/app/uploads
+    networks:
+      - {{project_name|machine_name}}_network
+      # If using the shared VPS Elasticsearch, also join its network:
+      # - crk_vps_shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # No command/volume: the image bakes the compiled app and its CMD applies
+    # migrations (idempotent) then serves — `node migrate.js && node main.js`.
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:${API_PORT:-{{prod_port_api}}}/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    # Compiled Next standalone image. NEXT_PUBLIC_* are inlined at build time, so
+    # they're build args (rebuild/push when the API origin changes). Pin a registry
+    # tag via WEB_IMAGE in .env.
+    image: ${WEB_IMAGE:-{{image_repo}}:web}
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://{{domain}}/api}
+        NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-https://{{domain}}/graphql}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-{{project_name}}}
+    container_name: {{project_name|machine_name}}_web
+    environment:
+      - PORT=${WEB_PORT:-{{prod_port_web}}}
+    ports:
+      - '${WEB_PORT:-{{prod_port_web}}}:${WEB_PORT:-{{prod_port_web}}}'
+    networks:
+      - {{project_name|machine_name}}_network
+    depends_on:
+      - api
+    # CMD baked in the image: node apps/web/server.js
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:${WEB_PORT:-{{prod_port_web}}}/ || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  {{project_name|machine_name}}_network:
+    driver: bridge
+  # Owned by the crk-vps-shared stack (shared Elasticsearch etc.) — start that
+  # stack first; uncomment only if the api joins it above.
+  # crk_vps_shared:
+  #   external: true

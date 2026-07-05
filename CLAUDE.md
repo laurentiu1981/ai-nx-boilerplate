@@ -22,3 +22,15 @@
 
 
 <!-- nx configuration end-->
+
+# Boilerplate usage
+
+This repo is a base for new dockerized Nx monorepo projects. When bootstrapping a
+new project from it:
+
+- Start from `docs/prompt.txt` (placeholder-driven kickoff prompt).
+- Instantiate the templates in `docs/examples/` — read `docs/examples/README.md`
+  first; it lists every `{{...}}` placeholder and the conventions (port bands from
+  `~/GITCRK/PORTS.md`, zero-edit `docker compose up -d`, graceful degradation of
+  optional features, registry-based prod releases, single-origin reverse proxy).
+- `docker/local.Dockerfile` is the dev image the compose templates reference.

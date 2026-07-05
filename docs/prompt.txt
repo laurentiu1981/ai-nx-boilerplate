@@ -1,0 +1,65 @@
+I want to bootstrap a new project as a dockerized nx monorepo, starting from this
+boilerplate: {{boilerplate_repo_url}}
+
+Project name: {{project_name}}
+Machine name (prefix for containers, db, network, env defaults): {{project_name|machine_name}}
+
+I want to create a website that should have:
+{{components}}
+
+## How to proceed
+
+The boilerplate ships proven, agnostic templates in `docs/examples/` — read
+`docs/examples/README.md` first. It documents every `{{...}}` placeholder and the
+non-negotiable conventions. Instead of inventing structure, instantiate those
+templates and adapt them to the components above.
+
+Concretely:
+
+1. **Ports** — follow `docs/examples/ports.md`: read `~/GITCRK/PORTS.md`, claim the
+   next free 100-port band (web {{port_band}}10, api {{port_band}}20, db {{port_band}}30, extras {{port_band}}40+,
+   pgadmin {{port_band}}50), update PORTS.md (kept sorted) and declare the allocation in this
+   project's README/CLAUDE.md.
+
+2. **Dev stack** — instantiate `docs/examples/docker/docker-compose.yml` and
+   `docs/examples/env/.env.example`. Default stack is postgres + NestJS api +
+   Next.js web. If the components need a different stack (TimescaleDB, Elasticsearch,
+   Redis, MinIO/S3, filesystem-only storage, MailHog, SearXNG, vLLM…), pull the
+   matching drop-in block from `docs/examples/stacks.md`. `docker compose up -d`
+   must work with zero edits on a fresh clone.
+
+3. **Database** — postgres with Drizzle per `docs/examples/database/drizzle.md`
+   (schema in a shared lib, `db:generate` / `db:migrate` / `db:seed` scripts,
+   migrations auto-applied on api boot). Use mysql or plain filesystem storage
+   instead only if the components call for it.
+
+4. **Auth** — Google login per `docs/examples/auth/google-oauth.md`: Passport
+   strategy + JWT httpOnly cookie, same env variable names
+   (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_CALLBACK_URL), graceful 503
+   when unconfigured.
+
+5. **Production** — instantiate `docs/examples/docker/api.Dockerfile`,
+   `docs/examples/docker/web.Dockerfile`, `docs/examples/docker/docker-compose-prod.yml`
+   and `docs/examples/env/.env.prod.example`. Wire the release scripts from
+   `docs/examples/release/` (copy to `scripts/`, add the npm scripts from
+   RELEASE.md). Document the reverse proxy per `docs/examples/reverse-proxy.md`.
+   Leave `{{domain}}` and `{{image_repo}}` as the placeholders' values I provide —
+   or ask me if I haven't.
+
+6. **README** — write the project README from `docs/examples/README-template.md`:
+   brief description, then Quick start (Local / Production — <domain> with Release,
+   First deploy, Rollback, Reverse proxy, Notes), then Stack, Layout and the Ports
+   table. Keep those sections shaped like the template; add project-specific
+   sections (extension, cron, admin CLI, …) as the structure demands.
+
+## UI / style
+
+For react components and their style, use
+https://www.npmjs.com/package/@overdoser/react-toolkit (it has docs for LLMs).
+Style/design should be clean/minimalistic and high quality, with reusable style —
+prepare a theme so elements share a consistent look.
+
+## Tooling
+
+Make use of the nx MCP server and the workspace skills (nx-generate, nx-workspace)
+where they help. Follow the guidelines in CLAUDE.md / AGENTS.md.

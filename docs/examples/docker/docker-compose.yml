@@ -1,0 +1,167 @@
+# LOCAL DEVELOPMENT CONFIGURATION — template
+# Use: docker compose up -d
+#
+# Port allocation (host side) — pick a free 100-port band per docs/examples/ports.md
+# and record it in ~/GITCRK/PORTS.md. Offsets within the band:
+#   web            {{port_band}}10
+#   api            {{port_band}}20
+#   postgres       {{port_band}}30
+#   extras         {{port_band}}40+   (elasticsearch, redis, minio, ...)
+#   pgadmin        {{port_band}}50    (profile: tools)
+#
+# Files are bind-mounted from the host; dependencies install at container start
+# into named volumes, so the host's node_modules is never touched.
+#
+# Optional services (elasticsearch, redis, minio, mailhog, searxng, vllm, ...):
+# see docs/examples/stacks.md for drop-in service blocks.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: {{project_name|machine_name}}_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-{{project_name|machine_name}}}
+      POSTGRES_USER: ${POSTGRES_USER:-{{project_name|machine_name}}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-{{project_name|machine_name}}_pass}
+    ports:
+      - '${POSTGRES_PORT:-{{port_band}}30}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - {{project_name|machine_name}}_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-{{project_name|machine_name}}} -d ${POSTGRES_DB:-{{project_name|machine_name}}}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/local.Dockerfile
+    image: {{project_name|slug}}/local:01
+    container_name: {{project_name|machine_name}}_api
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-{{project_name|machine_name}}}:${POSTGRES_PASSWORD:-{{project_name|machine_name}}_pass}@postgres:5432/${POSTGRES_DB:-{{project_name|machine_name}}}
+      - API_PORT={{port_band}}20
+      - API_HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:{{port_band}}10}
+      - GRAPHQL_PLAYGROUND=${GRAPHQL_PLAYGROUND:-true}
+      - GRAPHQL_INTROSPECTION=${GRAPHQL_INTROSPECTION:-true}
+      # Google OAuth (optional — login is disabled with a 503 when these are empty)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-http://localhost:{{port_band}}20/api/auth/google/callback}
+      # AI providers (optional)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-5}
+    # Lets the api reach a model the user runs on their host machine (LM Studio
+    # / vLLM at localhost:1234 / :8000) — from inside the container that's
+    # host.docker.internal.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - '${API_PORT:-{{port_band}}20}:{{port_band}}20'
+    volumes:
+      - .:/app
+      - api_node_modules:/app/node_modules
+      - api_uploads:/app/uploads
+      - api_nx:/app/.nx
+    networks:
+      - {{project_name|machine_name}}_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        whoami &&
+        node --version && nx --version &&
+        echo '📦 Installing dependencies...' &&
+        yarn install &&
+        echo '🧬 Generating drizzle migrations (idempotent)...' &&
+        (yarn db:generate || echo 'db:generate skipped') &&
+        echo '🗄️  Running database migrations...' &&
+        yarn db:migrate &&
+        echo '🌱 Seeding database (idempotent)...' &&
+        (yarn db:seed || echo 'Seed completed or already exists') &&
+        echo '🚀 Starting API server...' &&
+        yarn dev:api
+      "
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:{{port_band}}20/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/local.Dockerfile
+    image: {{project_name|slug}}/local:01
+    container_name: {{project_name|machine_name}}_web
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:{{port_band}}20/api}
+      - NEXT_PUBLIC_GRAPHQL_URL=${NEXT_PUBLIC_GRAPHQL_URL:-http://localhost:{{port_band}}20/graphql}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-{{project_name}}}
+    ports:
+      - '${WEB_PORT:-{{port_band}}10}:{{port_band}}10'
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+      - web_nx:/app/.nx
+    networks:
+      - {{project_name|machine_name}}_network
+    depends_on:
+      - api
+    command: >
+      sh -c "
+        whoami &&
+        node --version && nx --version &&
+        echo '📦 Installing dependencies...' &&
+        yarn install &&
+        echo '🚀 Starting web server...' &&
+        yarn dev:web
+      "
+
+  # Optional development tools — start with: docker compose --profile tools up -d
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: {{project_name|machine_name}}_pgadmin
+    profiles: ['tools']
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '${PGADMIN_PORT:-{{port_band}}50}:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - {{project_name|machine_name}}_network
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  api_node_modules:
+    driver: local
+  web_node_modules:
+    driver: local
+  api_uploads:
+    driver: local
+  api_nx:
+    driver: local
+  web_nx:
+    driver: local
+
+networks:
+  {{project_name|machine_name}}_network:
+    driver: bridge
