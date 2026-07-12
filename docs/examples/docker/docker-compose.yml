@@ -70,6 +70,9 @@ services:
       - api_node_modules:/app/node_modules
       - api_uploads:/app/uploads
       - api_nx:/app/.nx
+      # Shared package cache — otherwise every `yarn install` at startup grows
+      # the container's writable layer by several GB (~/.cache/yarn).
+      - yarn_cache:/home/node/.cache/yarn
     networks:
       - {{project_name|machine_name}}_network
     depends_on:
@@ -80,7 +83,7 @@ services:
         whoami &&
         node --version && nx --version &&
         echo '📦 Installing dependencies...' &&
-        yarn install &&
+        yarn install --mutex 'file:/home/node/.cache/yarn/.yarn-mutex' &&
         echo '🧬 Generating drizzle migrations (idempotent)...' &&
         (yarn db:generate || echo 'db:generate skipped') &&
         echo '🗄️  Running database migrations...' &&
@@ -114,6 +117,8 @@ services:
       - .:/app
       - web_node_modules:/app/node_modules
       - web_nx:/app/.nx
+      # Shared with the api service — see the comment there.
+      - yarn_cache:/home/node/.cache/yarn
     networks:
       - {{project_name|machine_name}}_network
     depends_on:
@@ -123,7 +128,7 @@ services:
         whoami &&
         node --version && nx --version &&
         echo '📦 Installing dependencies...' &&
-        yarn install &&
+        yarn install --mutex 'file:/home/node/.cache/yarn/.yarn-mutex' &&
         echo '🚀 Starting web server...' &&
         yarn dev:web
       "
@@ -160,6 +165,11 @@ volumes:
   api_nx:
     driver: local
   web_nx:
+    driver: local
+  # One yarn cache for both app containers; the install commands serialize on a
+  # file mutex inside it (the two services install concurrently at startup).
+  # Drop the mutex flag if only one service installs at startup.
+  yarn_cache:
     driver: local
 
 networks:

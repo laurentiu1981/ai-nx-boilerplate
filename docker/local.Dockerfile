@@ -21,9 +21,12 @@ WORKDIR /app
 RUN addgroup -g 1000 -S node && \
     adduser -S node -u 1000 -G node
 
-# Create directories with proper permissions for volume mounts
-RUN mkdir -p node_modules uploads .nx/cache tmp && \
-    chown -R 1000:1000 node_modules uploads .nx tmp
+# Create directories with proper permissions for volume mounts.
+# /home/node/.cache/yarn backs the shared yarn_cache volume — without it the
+# yarn cache lands in each container's writable layer and grows to multiple GB
+# per container.
+RUN mkdir -p node_modules uploads .nx/cache tmp /home/node/.cache/yarn && \
+    chown -R 1000:1000 node_modules uploads .nx tmp /home/node
 
 # Switch to non-root user
 USER 1000
