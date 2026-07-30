@@ -34,17 +34,22 @@ The registry is **`~/GITCRK/PORTS.md`** — read it, pick, then update it.
 
    It returns 5 candidate free 100-port ranges — claim the first one and apply the
    same offsets inside it (e.g. band 10500–10599 → web `10510`, api `10520`).
-   Existing claims: 102xx agent-gallery, 103xx mind-cache, 104xx nutrition-tracker.
    Prod ports are separate from dev so both stacks can run side by side; prod
    postgres is never published on the host.
+   **Record the prod band ONLY in the project's README/CLAUDE.md — NEVER in
+   `~/GITCRK/PORTS.md`.** That file registers ports bound on the local machine;
+   the VPS is a different machine, and the allocation service above is the
+   source of truth for its claims.
 5. **Every host port must be `${SOMETHING_PORT:-<default>}`** in compose — never a raw
    literal — so a developer can rebind on collision without editing the compose file.
    Mirror every default in `.env.example`.
-6. **Update `~/GITCRK/PORTS.md`**: add rows to the port-by-port index (section 1,
-   keep it sorted), add the project to the per-project table (section 3), and update
-   the "next free band" note in section 4.0 and the header changelog line.
-7. **Declare the allocation in the project's README/CLAUDE.md** as a one-line table so
-   PORTS.md can be regenerated mechanically:
+6. **Update `~/GITCRK/PORTS.md`** with the DEV band only (prod/VPS ports never go
+   in this file): add rows to the port-by-port index (section 1, keep it sorted),
+   add the project to the per-project table (section 3), and update the "next free
+   band" note in section 4.0 and the header changelog line.
+7. **Declare the allocation in the project's README/CLAUDE.md** as a one-line table
+   (plus the prod band, which is documented only there) so PORTS.md can be
+   regenerated mechanically:
 
    ```
    | Service | Container | Host port |
