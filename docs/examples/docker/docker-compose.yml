@@ -7,7 +7,7 @@
 #   api            {{port_band}}20
 #   postgres       {{port_band}}30
 #   extras         {{port_band}}40+   (elasticsearch, redis, minio, ...)
-#   pgadmin        {{port_band}}50    (profile: tools)
+#   pgadmin        {{port_band}}50    (profile: tools — only if requested)
 #
 # Files are bind-mounted from the host; dependencies install at container start
 # into named volumes, so the host's node_modules is never touched.
@@ -133,28 +133,12 @@ services:
         yarn dev:web
       "
 
-  # Optional development tools — start with: docker compose --profile tools up -d
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: {{project_name|machine_name}}_pgadmin
-    profiles: ['tools']
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-    ports:
-      - '${PGADMIN_PORT:-{{port_band}}50}:80'
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - {{project_name|machine_name}}_network
-    depends_on:
-      - postgres
+  # Helper containers (pgadmin, mailhog, searxng, ...) are NOT part of the default
+  # stack — add them ONLY when the kickoff prompt asks for them, as drop-in blocks
+  # from docs/examples/stacks.md (gated behind compose profiles).
 
 volumes:
   postgres_data:
-    driver: local
-  pgadmin_data:
     driver: local
   api_node_modules:
     driver: local

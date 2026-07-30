@@ -34,3 +34,5 @@ new project from it:
   `~/GITCRK/PORTS.md`, zero-edit `docker compose up -d`, graceful degradation of
   optional features, registry-based prod releases, single-origin reverse proxy).
 - `docker/local.Dockerfile` is the dev image the compose templates reference.
+- `playground/` is an untracked scratch area (contents gitignored) — keep it in
+  every project bootstrapped from this repo.

@@ -11,8 +11,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 [ -f .env ] && { set -a; . ./.env; set +a; }
-API_IMAGE="${API_IMAGE:-{{image_repo}}:api}"
-WEB_IMAGE="${WEB_IMAGE:-{{image_repo}}:web}"
+API_IMAGE="${API_IMAGE:-{{docker_repository}}:{{project_name|slug}}-api}"
+WEB_IMAGE="${WEB_IMAGE:-{{docker_repository}}:{{project_name|slug}}-web}"
 
 for ref in "$API_IMAGE" "$WEB_IMAGE"; do
   if docker image inspect "${ref}-bak" >/dev/null 2>&1; then

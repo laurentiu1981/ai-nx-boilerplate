@@ -10,7 +10,7 @@
 # args (they bake the API origin in). Build on a host with RAM, push, pull on prod:
 #   docker build -f docker/web.Dockerfile \
 #     --build-arg NEXT_PUBLIC_API_URL=https://{{domain}} \
-#     -t {{image_repo}}:web-<tag> .
+#     -t {{docker_repository}}:{{project_name|slug}}-web-<tag> .
 
 # ── 1. base ───────────────────────────────────────────────────────────────────
 FROM platformatic/node-caged:26.3.1-alpine AS base

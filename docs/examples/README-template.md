@@ -53,10 +53,13 @@ a Next.js web app + NestJS API), the backing stores (Postgres, …). End with
 Before `yarn docker:prune` the previous images are still tagged `:*-bak` — retag and restart:
 
 ```bash
-docker tag {{image_repo}}:api-bak {{image_repo}}:api
-docker tag {{image_repo}}:web-bak {{image_repo}}:web
+docker tag {{docker_repository}}:{{project_name|slug}}-api-bak {{docker_repository}}:{{project_name|slug}}-api
+docker tag {{docker_repository}}:{{project_name|slug}}-web-bak {{docker_repository}}:{{project_name|slug}}-web
 yarn prod:start
 ```
+
+Old pinned tags in the shared registry: `yarn docker:tags:prune` (dry run) /
+`--yes` (delete; keeps the newest per component, other projects' tags untouched).
 
 #### Reverse proxy (Apache vhost)
 
@@ -120,6 +123,7 @@ Set the Google OAuth **authorized redirect URI** to
 - `apps/api` — NestJS API (`/graphql`, REST under `/api`).
 - `libs/db` — Drizzle schema + migrations.
 - `libs/shared` — types/helpers shared across apps.
+- `playground/` — untracked scratch area (contents gitignored).
 <!-- add the project's other apps/libs -->
 
 ## Ports (host side — see `~/GITCRK/PORTS.md`)

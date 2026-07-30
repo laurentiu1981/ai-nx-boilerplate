@@ -16,9 +16,9 @@
 #   1. base      — node + yarn + dumb-init (changes ~never)
 #
 # Build (needs RAM for the webpack/tsc build — do it on a capable host/CI, not the VPS):
-#   docker build -f docker/api.Dockerfile -t {{image_repo}}:api-<tag> .
+#   docker build -f docker/api.Dockerfile -t {{docker_repository}}:{{project_name|slug}}-api-<tag> .
 # Run:
-#   docker run --env-file .env -p {{prod_port_api}}:{{prod_port_api}} {{image_repo}}:api-<tag>
+#   docker run --env-file .env -p {{prod_port_api}}:{{prod_port_api}} {{docker_repository}}:{{project_name|slug}}-api-<tag>
 
 # ── 1. base ───────────────────────────────────────────────────────────────────
 # Shared by every stage. node-caged ships only npm (no corepack/yarn), so add yarn.

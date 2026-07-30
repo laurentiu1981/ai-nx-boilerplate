@@ -4,8 +4,20 @@ boilerplate: {{boilerplate_repo_url}}
 Project name: {{project_name}}
 Machine name (prefix for containers, db, network, env defaults): {{project_name|machine_name}}
 
+## What the project does
+
+{{project_summary}}
+
+(Short summary only — detailed requirements will follow once the project is
+initialized. Set the structure up so it can grow in that direction.)
+
 I want to create a website that should have:
 {{components}}
+
+Helper containers (pgadmin, mailhog, searxng, ...): {{helper_containers}}
+— add ONLY the ones listed here, as profile-gated drop-in blocks from
+docs/examples/stacks.md. If none are listed, add none (the default stack is just
+postgres + api + web).
 
 ## How to proceed
 
@@ -42,9 +54,13 @@ Concretely:
    `docs/examples/docker/web.Dockerfile`, `docs/examples/docker/docker-compose-prod.yml`
    and `docs/examples/env/.env.prod.example`. Wire the release scripts from
    `docs/examples/release/` (copy to `scripts/`, add the npm scripts from
-   RELEASE.md). Document the reverse proxy per `docs/examples/reverse-proxy.md`.
-   Leave `{{domain}}` and `{{image_repo}}` as the placeholders' values I provide —
-   or ask me if I haven't.
+   RELEASE.md). All projects push to the ONE shared private docker repository
+   {{docker_repository}}, with project + component encoded in the tag
+   ({{tag_pattern}}): `{{project_name|slug}}-api` / `-web` when building an
+   image per service, or `{{project_name|slug}}-all` when one image serves
+   all services (crk-vault style — see RELEASE.md). Document the reverse proxy per
+   `docs/examples/reverse-proxy.md`. Use the `{{domain}}` value I provide — or ask
+   me if I haven't.
 
 6. **README** — write the project README from `docs/examples/README-template.md`:
    brief description, then Quick start (Local / Production — <domain> with Release,

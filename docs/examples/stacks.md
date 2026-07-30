@@ -1,10 +1,12 @@
 # Stack variations — drop-in compose services
 
-The dev compose template (`docker/docker-compose.yml`) ships the core trio
-(postgres, api, web). Different projects swap or add services; these are the
-proven blocks from existing projects. Host ports follow the band offsets from
-`ports.md` (`{{port_band}}40`+ for extras). Gate anything optional behind a compose
-`profile` so `docker compose up -d` stays lean.
+The dev compose template (`docker/docker-compose.yml`) ships ONLY the core trio
+(postgres, api, web). Everything else on this page — backing stores and **helper
+containers** (pgadmin, mailhog, searxng, …) alike — is added only when the kickoff
+prompt asks for it; do not add helpers by default. Host ports follow the band
+offsets from `ports.md` (`{{port_band}}40`+ for extras, `{{port_band}}50` pgadmin).
+Gate anything optional behind a compose `profile` so `docker compose up -d` stays
+lean.
 
 Shared conventions for every block:
 - host ports always `${VAR:-default}`, mirrored in `.env.example`;
@@ -152,6 +154,29 @@ api env: `MINIO_ENDPOINT=minio`, `MINIO_PORT=9000`, `MINIO_USE_SSL=false`, bucke
 name, and access/secret mirroring the root user/password. Serve stored objects
 through an api proxy route; build URLs from `API_PUBLIC_URL` for the browser and an
 internal `http://api:<port>/api` URL for in-network consumers.
+
+## pgAdmin (dev DB browser — profile: tools)
+
+```yaml
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: {{project_name|machine_name}}_pgadmin
+    profiles: ['tools']
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '${PGADMIN_PORT:-{{port_band}}50}:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - {{project_name|machine_name}}_network
+    depends_on:
+      - postgres
+```
+
+(Plus a `pgadmin_data` named volume.) Start with `docker compose --profile tools up -d`.
 
 ## MailHog (dev SMTP catcher — crk-stocks, profile: mail-dev)
 

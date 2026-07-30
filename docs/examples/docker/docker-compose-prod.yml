@@ -6,6 +6,10 @@
 #   web — docker/web.Dockerfile : Next standalone (traced node_modules); runs
 #         `node apps/web/server.js`. NEXT_PUBLIC_* are baked in at BUILD time.
 #
+# Images live in the SHARED private repo {{docker_repository}}; project + component
+# are encoded in the tag ({{project_name|slug}}-api / -web). Single-image
+# projects use one {{project_name|slug}}-all tag instead — see RELEASE.md.
+#
 # Build on a host with RAM (the webpack/Next builds are memory-heavy — don't build
 # on the VPS), push, then pull on prod. Pin tags via API_IMAGE / WEB_IMAGE in .env:
 #   yarn docker:release                          # on a build host (build + push)
@@ -41,7 +45,7 @@ services:
     # Compiled, self-contained release image — bundled JS + slim node_modules,
     # runs on plain node. Pin a registry tag via API_IMAGE in .env; the build
     # block lets a build host run `docker compose -f docker-compose-prod.yml build api`.
-    image: ${API_IMAGE:-{{image_repo}}:api}
+    image: ${API_IMAGE:-{{docker_repository}}:{{project_name|slug}}-api}
     build:
       context: .
       dockerfile: docker/api.Dockerfile
@@ -96,7 +100,7 @@ services:
     # Compiled Next standalone image. NEXT_PUBLIC_* are inlined at build time, so
     # they're build args (rebuild/push when the API origin changes). Pin a registry
     # tag via WEB_IMAGE in .env.
-    image: ${WEB_IMAGE:-{{image_repo}}:web}
+    image: ${WEB_IMAGE:-{{docker_repository}}:{{project_name|slug}}-web}
     build:
       context: .
       dockerfile: docker/web.Dockerfile

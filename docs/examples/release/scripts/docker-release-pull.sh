@@ -16,8 +16,8 @@ cd "$ROOT"
 
 [ -f .env ] && { set -a; . ./.env; set +a; }
 # Match docker-compose-prod.yml's image defaults exactly.
-API_IMAGE="${API_IMAGE:-{{image_repo}}:api}"
-WEB_IMAGE="${WEB_IMAGE:-{{image_repo}}:web}"
+API_IMAGE="${API_IMAGE:-{{docker_repository}}:{{project_name|slug}}-api}"
+WEB_IMAGE="${WEB_IMAGE:-{{docker_repository}}:{{project_name|slug}}-web}"
 
 for ref in "$API_IMAGE" "$WEB_IMAGE"; do
   if docker image inspect "$ref" >/dev/null 2>&1; then
