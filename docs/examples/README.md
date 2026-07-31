@@ -59,3 +59,7 @@ copy them into a new project and replace the placeholders.
 6. **Secrets**: only in `.env` (gitignored). `.env.example` carries placeholders.
 7. **Helper containers are opt-in**: pgadmin, mailhog, searxng etc. are added only
    when the kickoff prompt lists them ({{helper_containers}}) — never by default.
+8. **Scaffold with Nx generators**: create apps/libs with the available Nx
+   generators (e.g. `@nx/next:app`, `@nx/nest:app` if those frameworks were
+   requested) so the matching Nx plugins get installed — never hand-write project
+   targets when a generator exists for the framework.

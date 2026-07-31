@@ -33,24 +33,29 @@ Concretely:
    pgadmin {{port_band}}50), update PORTS.md (kept sorted) and declare the allocation in this
    project's README/CLAUDE.md.
 
-2. **Dev stack** — instantiate `docs/examples/docker/docker-compose.yml` and
+2. **Scaffolding** — create apps and libs with the available Nx generators
+   (e.g. `@nx/next:app`, `@nx/nest:app` if those frameworks were requested) so the
+   corresponding Nx plugins get installed. Never hand-write project targets when a
+   generator exists for the framework.
+
+3. **Dev stack** — instantiate `docs/examples/docker/docker-compose.yml` and
    `docs/examples/env/.env.example`. Default stack is postgres + NestJS api +
    Next.js web. If the components need a different stack (TimescaleDB, Elasticsearch,
    Redis, MinIO/S3, filesystem-only storage, MailHog, SearXNG, vLLM…), pull the
    matching drop-in block from `docs/examples/stacks.md`. `docker compose up -d`
    must work with zero edits on a fresh clone.
 
-3. **Database** — postgres with Drizzle per `docs/examples/database/drizzle.md`
+4. **Database** — postgres with Drizzle per `docs/examples/database/drizzle.md`
    (schema in a shared lib, `db:generate` / `db:migrate` / `db:seed` scripts,
    migrations auto-applied on api boot). Use mysql or plain filesystem storage
    instead only if the components call for it.
 
-4. **Auth** — Google login per `docs/examples/auth/google-oauth.md`: Passport
+5. **Auth** — Google login per `docs/examples/auth/google-oauth.md`: Passport
    strategy + JWT httpOnly cookie, same env variable names
    (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_CALLBACK_URL), graceful 503
    when unconfigured.
 
-5. **Production** — instantiate `docs/examples/docker/api.Dockerfile`,
+6. **Production** — instantiate `docs/examples/docker/api.Dockerfile`,
    `docs/examples/docker/web.Dockerfile`, `docs/examples/docker/docker-compose-prod.yml`
    and `docs/examples/env/.env.prod.example`. Wire the release scripts from
    `docs/examples/release/` (copy to `scripts/`, add the npm scripts from
@@ -62,7 +67,7 @@ Concretely:
    `docs/examples/reverse-proxy.md`. Use the `{{domain}}` value I provide — or ask
    me if I haven't.
 
-6. **README** — write the project README from `docs/examples/README-template.md`:
+7. **README** — write the project README from `docs/examples/README-template.md`:
    brief description, then Quick start (Local / Production — <domain> with Release,
    First deploy, Rollback, Reverse proxy, Notes), then Stack, Layout and the Ports
    table. Keep those sections shaped like the template; add project-specific
